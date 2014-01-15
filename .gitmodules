@@ -1,0 +1,12 @@
+[submodule "libvmod-example"]
+	path = libvmod-example
+	url = git@github.com:varnish/libvmod-example.git
+[submodule "libvmod-header"]
+	path = libvmod-header
+	url = git@github.com:varnish/libvmod-header.git
+[submodule "libvmod-digest"]
+	path = libvmod-digest
+	url = git@github.com:varnish/libvmod-digest.git
+[submodule "geoip-vmod"]
+	path = geoip-vmod
+	url = git@github.com:leed25d/geoip-vmod.git

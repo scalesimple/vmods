@@ -1,0 +1,4 @@
+Module ssutil
+Init init_function
+Function STRING time_str()
+Function INT time_expired(STRING)

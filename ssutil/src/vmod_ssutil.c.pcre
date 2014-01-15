@@ -1,0 +1,126 @@
+#include <stdlib.h>
+#include <stdio.h> 
+#include <time.h> 
+#include "vrt.h"
+#include "bin/varnishd/cache.h"
+#define PCRE_STATIC  
+#include <pcre.h>  
+#include <errno.h>  
+#include <string.h>  
+
+#define OUTPUT_SIZE 12
+#define SUBSTRING_SIZE 16
+
+#include "vcc_if.h"
+
+int
+init_function(struct vmod_priv *priv, const struct VCL_conf *conf)
+{
+	return (0);
+}
+
+const char *
+vmod_time_str(struct sess *sp)
+{
+  time_t now = time(NULL); 
+  char * now_char = malloc(33) ; 
+
+  sprintf(now_char,"%d",(int)now); 
+  
+  return(now_char); 
+}
+
+/*---------------------------------------
+  Return the time between NOW() and the 
+  value of the passed in header
+ ---------------------------------------*/
+int __match_proto__()
+vmod_time_diff(struct sess *sp, const char * header) {
+
+  time_t now = time(NULL); 
+  int delta; 
+  
+  delta = (int)now - atoi(header) ; 
+  return(delta);
+}
+
+
+
+
+const char *
+vmod_get_query_param(struct sess *sp, const char * url, const char * qparam) { 
+
+  pcre *re;
+  pcre_extra *extra;
+  //const char *input = "http://www.domain.com?a=1&b=2&vv=383&xx=38383";
+  //const char *pattern = "^\\s*get\\s+(\\w+)\\s*$\0";
+  char * pattern = malloc(256); 
+  sprintf(pattern,"[^?]+\\?.*?(?:\\?|\\&)%s=([^&]+)",qparam); 
+  //const char *pattern = "[^?]+\\?.*?(?:\\?|\\&)b=([^&]+)"; 
+  int options = PCRE_CASELESS | PCRE_UTF8 | PCRE_UCP;
+  int error_code = 0;
+  int error_offset = 0;
+  const char *compile_error;
+  const char *study_error;
+  int output[OUTPUT_SIZE];
+  char * substring = malloc(SUBSTRING_SIZE +1) ;
+  int matched = 0;
+  int is_error = 0;
+  int index = 0;
+  for(index = 0; index < OUTPUT_SIZE; index++) {
+    output[index] = 0;
+  }
+  re = pcre_compile2( pattern,
+                      options,
+                      &error_code,
+                      &compile_error,
+                      &error_offset,
+                      NULL );
+  if(re == NULL) {
+    fprintf(stderr, "PCRE regular expression error at position %d: %s", error_offset, compile_error);
+    exit(EXIT_FAILURE);
+  }
+  if(error_code == 0) {
+    extra = pcre_study( re,
+                        0,
+                        &study_error );
+  }
+  else {
+    fprintf(stderr, "PCRE regular expression error at position %d: %s", error_offset, compile_error);
+    extra = NULL;
+  }
+
+  matched = pcre_exec( re,
+                       extra,
+                       url,
+                       (int)strlen(url),
+                       0, /* Start at the beginning of the string */
+                       0,
+                       output,
+                       OUTPUT_SIZE );
+  if(matched > 1) {
+    int status = pcre_copy_substring( url,
+                                      output,
+                                      matched,
+                                      1,
+                                      substring,
+                                      SUBSTRING_SIZE );
+    if(status < 0) {
+      switch(status) {
+        case PCRE_ERROR_NOMEMORY:
+          fprintf(stderr, "PCRE substring extraction error: %s", "Buffer too small");
+          break;
+        case PCRE_ERROR_NOSUBSTRING:
+          fprintf(stderr, "PCRE substring extraction error: %s", "Invalid substring number");
+          break;
+      }
+      is_error = 1;
+    }
+  }
+
+  if(is_error) {
+    printf("There was an error with the pcre_copy_substring() function.\n");
+  }
+
+  return substring;
+}
